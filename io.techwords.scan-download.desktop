@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Downloaded Files Virus Scanner
+Comment=Monitors the Downloads folder for viruses
+# Adjust the following line to reflect the path on your system
+Exec=/home/me/bin/scan-download.sh
+Hidden=false
+Terminal=false
+OnlyShowIn=GNOME;
+Categories=GNOME;GTK;System;Security;
+Keywords=antivirus;monitor;download;
+X-GNOME-Autostart-enabled=true
+X-GNOME-UsesNotifications=true
