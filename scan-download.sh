@@ -34,6 +34,7 @@ while read message < $IPC; do
 	DWNLD="$(echo $message | cut -d' ' --output-delimiter= -f1,3-)"
 	sleep 1
 	if [ -f "$DWNLD" -a -s "$DWNLD" ]; then
+		#clamdscan --no-summary $DWNLD > $RSLT
 		clamscan --no-summary --detect-pua=yes --official-db-only=yes $DWNLD > $RSLT
 		if [ $? -eq 1 ]; then
 			THREAT=$(awk '$NF ~ /FOUND/ {print $2}' $RSLT)
