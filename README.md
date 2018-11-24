@@ -65,7 +65,7 @@ The `.sh` script uses a lock file to prevent multiple instances of itself. It al
 
 ## Tweaks
 
-* You might want to use `clamdscan` instead of `clamscan` if you download lots of files, because it might be faster, but it might consume more RAM as well.
+* You might want to use `clamdscan` instead of `clamscan` if you download lots of files, because it is a lot faster, but it consumes more RAM (~1GB) and requires configuration.
 * More visible notifications can be achieved by replacing `notify-send` with [`zenity`](https://wiki.gnome.org/Projects/Zenity) (Gnome) or [`kdialog`](https://userbase.kde.org/Kdialog) (KDE).
 
 ## License
