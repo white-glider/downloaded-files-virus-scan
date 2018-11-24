@@ -5,6 +5,7 @@ Comment=Monitors the Downloads folder for viruses
 # Adjust the following line to reflect the path on your system
 Exec=/home/me/bin/scan-download.sh
 Hidden=false
+Icon=security-medium
 Terminal=false
 OnlyShowIn=GNOME;
 Categories=GNOME;GTK;System;Security;
