@@ -31,7 +31,7 @@ mkfifo $IPC 2>/dev/null
 inotifywait -qmr -e close_write -e moved_to $HOME/Downloads > $IPC &
 INW_PID=$!
 while read message < $IPC; do
-	DWNLD="$(echo $message | cut -d' ' --output-delimiter= -f1,3-)"
+	DWNLD="$(echo $message | tr -d '\0' | cut -d' ' --output-delimiter= -f1,3-)"
 	sleep 1
 	if [ -f "$DWNLD" -a -s "$DWNLD" ]; then
 		#clamdscan --no-summary $DWNLD > $RSLT
