@@ -12,14 +12,10 @@
 # copies or substantial portions of the Software.
 
 umask 077
-IPC=${XDG_RUNTIME_DIR:-/tmp}/scan-download
-LOCK=${IPC}.lock
-INW_PID=0
+LOCK=${XDG_RUNTIME_DIR:-/tmp}/scan-download.lock
 RSLT=/tmp/$$_clamav.tmp
 
 function tidy_up {
-	[ $INW_PID -ne 0 ] && kill $INW_PID
-	[ -p $IPC ] && rm -f $IPC
 	[ -f $LOCK ] && rm -f $LOCK
 	[ -f $RSLT ] && rm -f $RSLT
 }
@@ -27,11 +23,8 @@ function tidy_up {
 [ "$_FLOCKER" != "$LOCK" ] && exec env _FLOCKER="$LOCK" flock -en "$LOCK" "$0"
 trap "tidy_up 2>/dev/null" EXIT
 
-mkfifo $IPC 2>/dev/null
-inotifywait -qmr -e close_write -e moved_to $HOME/Downloads > $IPC &
-INW_PID=$!
-while read message < $IPC; do
-	DWNLD="$(echo $message | tr -d '\0' | cut -d' ' --output-delimiter= -f1,3-)"
+while message="$(inotifywait -qr -e close_write -e moved_to $HOME/Downloads)"; do
+	DWNLD="$(echo $message | cut -d' ' --output-delimiter= -f1,3-)"
 	sleep 1
 	if [ -f "$DWNLD" -a -s "$DWNLD" ]; then
 		#clamdscan --no-summary $DWNLD > $RSLT

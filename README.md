@@ -6,7 +6,7 @@ Script to monitor the `~/Downloads` folder and scan new files for viruses using 
 
 This script was written in [BASH](https://www.gnu.org/software/bash/) which should come pre-installed on almost all Linux distributions. It depends on ClamAV (`clamscan`), [inotify-tools](https://github.com/rvoicilas/inotify-tools/wiki) (`inotifywait`) and [Gnome's libnotify](https://developer.gnome.org/libnotify/) (`notify-send`).
 
-It was successfully tested on a [Fedora](https://getfedora.org/) 28 Workstation running GNU BASH 4.4.23, inotify-tools 3.14, ClamAV 0.100.1 and libnotify 0.7.7.
+It was successfully tested on a [Fedora](https://getfedora.org/) 33 Workstation running GNU BASH 5.0.17, inotify-tools 3.14.21, ClamAV 0.103.0 and libnotify 0.7.9.
 
 * For other Linux distributions you might want to adjust the the path to the `dialog-warning-symbolic.svg` file inside the shell script, because it will likely be different.
 * Instructions on how to install ClamAV can be found [here](https://www.clamav.net/documents/installing-clamav).
@@ -40,10 +40,10 @@ You should then see something like the following:
 ```
 flock -en /run/user/1000/scan-download.lock ...
   └─scan-download.s /home/me/bin/scan-download.sh
-      └─inotifywait -qmr -e close_write -e moved_to /home/me/Downloads
+      └─inotifywait -qr -e close_write -e moved_to /home/me/Downloads
 ```
 
-Moreover, you can check if the two temporary files were also created by executing the following command:
+Moreover, you can check if the temporary lock file was also created by executing the following command:
 
 ```
 $ ls -F ${XDG_RUNTIME_DIR:-/tmp}/scan-download*
@@ -52,7 +52,7 @@ $ ls -F ${XDG_RUNTIME_DIR:-/tmp}/scan-download*
 Which should produce something like the following output:
 
 ```
-/run/user/1000/scan-download|  /run/user/1000/scan-download.lock
+/run/user/1000/scan-download.lock
 ```
 
 ## Usage
@@ -61,11 +61,11 @@ If the tests above succeeded there is nothing else to do. Simply make sure that 
 
 Note that the process of scanning a new downloaded file takes a few seconds, so it's recommended to wait a bit (e.g. 30s) before using that file to ensure you won't get a virus notification.
 
-The `.sh` script uses a lock file to prevent multiple instances of itself. It also cleans-up after itself if it's terminated so no files should be left on the system if it's not running. The `inotifywait` command continuously monitors the directory `$HOME/Downloads` for `close_write` and `moved_to` events and sends those into a FIFO file which is continuously polled by the script. The script then scans with `clamscan` the file that triggered the event, and if a virus is found it generates a desktop notification using `notify-send`.
+The `.sh` script uses a lock file to prevent multiple instances of itself. It also cleans-up after itself if it's terminated so no files should be left on the system if it's not running. The script uses the `inotifywait` command continuously monitor the directory `$HOME/Downloads` for `close_write` and `moved_to` events and, when that happens, the script scans with `clamscan` the file that generated that event. If a virus is found in that file then a desktop notification is created by the `notify-send` command.
 
 ## Tweaks
 
-* You might want to use `clamdscan` instead of `clamscan` if you download lots of files, because it is a lot faster, but it consumes more RAM (~1GB) and requires configuration.
+* You might want to use `clamdscan` instead of `clamscan` if you download lots of files, because it is a lot faster, but it consumes more RAM (~1GB) and requires some configuration in advance.
 * More visible notifications can be achieved by replacing `notify-send` with [`zenity`](https://wiki.gnome.org/Projects/Zenity) (Gnome) or [`kdialog`](https://userbase.kde.org/Kdialog) (KDE).
 
 ## License
