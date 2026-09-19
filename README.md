@@ -4,12 +4,12 @@ Script to monitor the `~/Downloads` folder and scan new files for viruses using 
 
 ## Prerequisites
 
-This script was written in [BASH](https://www.gnu.org/software/bash/) which should come pre-installed on almost all Linux distributions. It depends on ClamAV (`clamscan`), [inotify-tools](https://github.com/rvoicilas/inotify-tools/wiki) (`inotifywait`) and [Gnome's libnotify](https://developer.gnome.org/libnotify/) (`notify-send`).
+This script requires Linux, Bash, ClamAV (`clamscan`), [inotify-tools](https://github.com/inotify-tools/inotify-tools) **4.23.9 or newer** (`inotifywait` with `%0` and `--no-newline`), util-linux (`flock`), GNU coreutils, AWK, grep, and [libnotify](https://gnome.pages.gitlab.gnome.org/libnotify/) (`notify-send`). Keep the ClamAV signature database updated with FreshClam.
 
-It was successfully tested on a [Fedora](https://getfedora.org/) 33 Workstation running GNU BASH 5.0.17, inotify-tools 3.14.21, ClamAV 0.103.0 and libnotify 0.7.9.
+The original version was tested on Fedora 33. Its old inotify-tools 3.14.21 dependency is not sufficient for the current NUL-delimited event format. Automated Linux tests target Ubuntu 24.04.
 
-* For other Linux distributions you might want to adjust the the path to the `dialog-warning-symbolic.svg` file inside the shell script, because it will likely be different.
-* Instructions on how to install ClamAV can be found [here](https://www.clamav.net/documents/installing-clamav).
+* Notifications use the standard `dialog-warning` icon name.
+* Instructions on how to install ClamAV can be found [here](https://docs.clamav.net/manual/Installing.html).
 
 ## Installing
 
@@ -17,12 +17,26 @@ Note: the brief instructions below assume the reader has some basic knowledge of
 
 Simply copy the `io.techwords.scan-download.desktop` file into the `${HOME}/.config/autostart` directory and the `scan-download.sh` script into a directory of your choice (suggestion: `${HOME}/bin`), set the execute permission on the `.sh` script (e.g. `chmod u+x scan-download.sh`), and adjust the `Exec=` line inside the `.desktop` file so it points to where you copied the `.sh` script. Restart Gnome or reboot your computer.
 
+By default the script monitors `$HOME/Downloads`. For a localized or custom
+directory, set `SCAN_DOWNLOAD_DIR` when launching it, for example:
+
+```sh
+SCAN_DOWNLOAD_DIR="$HOME/Descargas" "$HOME/bin/scan-download.sh"
+```
+
+The directory must already exist. When putting paths with spaces in a desktop
+entry, quote them according to the desktop-entry `Exec` syntax; it is not a shell.
+
 ## Testing
 
-After restarting Gnome or your computer, you can download any of the [EICAR's standard anti-virus test files](https://www.eicar.org/anti_virus_test_file.htm) into the `$HOME/Downloads` directory to see if you get a notification. For instance:
+After restarting Gnome or your computer, use [EICAR's standard anti-virus test files](https://www.eicar.org/download-anti-malware-testfile/) to check detection and desktop notifications.
+
+Run the automated suite with Python 3.10+:
 
 ```
-$ wget -P ~/Downloads https://www.eicar.org/download/eicar_com.zip
+python3 -m unittest discover -s tests -v
+bash -n scan-download.sh
+shellcheck scan-download.sh
 ```
 
 After a few seconds you should see a desktop notification like the one below:
@@ -32,43 +46,63 @@ After a few seconds you should see a desktop notification like the one below:
 You can also check if the necessary processes are running by executing the following command:
 
 ```
-$ pstree -aT $(pgrep -x flock)
+$ pgrep -af 'scan-download.sh|inotifywait'
 ```
 
 You should then see something like the following:
 
 ```
-flock -en /run/user/1000/scan-download.lock ...
-  └─scan-download.s /home/me/bin/scan-download.sh
-      └─inotifywait -qr -e close_write -e moved_to /home/me/Downloads
+/bin/bash /home/me/bin/scan-download.sh
+inotifywait --monitor --recursive --quiet --no-newline --format %w%f%0 ... /home/me/Downloads
 ```
 
-Moreover, you can check if the temporary lock file was also created by executing the following command:
+The per-user lock is retained between runs. When `XDG_RUNTIME_DIR` is set, inspect it with:
 
 ```
-$ ls -F ${XDG_RUNTIME_DIR:-/tmp}/scan-download*
+$ ls -l "$XDG_RUNTIME_DIR/scan-download/lock"
 ```
 
 Which should produce something like the following output:
 
 ```
-/run/user/1000/scan-download.lock
+/run/user/1000/scan-download/lock
 ```
 
 ## Usage
 
 If the tests above succeeded there is nothing else to do. Simply make sure that every new download goes into your `Downloads` folder, which is the one being monitored.
 
-Note that the process of scanning a new downloaded file takes a few seconds, so it's recommended to wait a bit (e.g. 30s) before using that file to ensure you won't get a virus notification.
+This is an asynchronous notification tool, not an execution blocker. **Silence
+does not prove a file is safe, and waiting 30 seconds is not a safety guarantee.**
+Scans take variable time, antivirus engines have detection limits, and scan
+errors mean a file has not been verified clean. Files remain accessible during
+and after scanning; detections do not automatically quarantine or delete them.
 
-The `.sh` script uses a lock file to prevent multiple instances of itself. It also cleans-up after itself if it's terminated so no files should be left on the system if it's not running. The script uses the `inotifywait` command continuously monitor the directory `$HOME/Downloads` for `close_write` and `moved_to` events and, when that happens, the script scans with `clamscan` the file that generated that event. If a virus is found in that file then a desktop notification is created by the `notify-send` command.
+One persistent recursive watcher sends NUL-delimited paths to an open pipe.
+Events can be buffered while the script scans earlier files; the watcher is
+not restarted between scans. Moved-in directories are scanned recursively.
+Scanner failures produce stderr diagnostics and an error notification; a watcher
+that stops causes the script to exit 2. Resolve the error and restart the script.
+
+The script uses a stable lock in a private directory. Without `XDG_RUNTIME_DIR`,
+the directory is `${TMPDIR:-/tmp}/scan-download-$UID`. It must be owned by the
+current user, mode 700, and not a symlink. The lock file is intentionally not
+deleted on exit: removing an actively locked pathname can break exclusion.
+Temporary results use a separate private `mktemp` directory, removed on exit and
+handled HUP/INT/TERM signals. Cleanup cannot run after SIGKILL or a system crash.
+
+Remaining limits: this does not rescan existing files at startup; recursive
+watch setup has races for newly created subdirectories, and sufficiently large
+event bursts can overflow kernel queues. It also cannot guarantee a file remains
+unchanged between an event, the scan, and later use. The Linux integration test
+covers a second download arriving during a slow scan and a rename into Downloads;
+scanner and notifier behavior is otherwise exercised with harmless stubs.
 
 ## Tweaks
 
-* You might want to use `clamdscan` instead of `clamscan` if you download lots of files, because it is a lot faster, but it consumes more RAM (~1GB) and requires some configuration in advance.
+* A configured `clamdscan` can reduce startup overhead, but its options and file-access requirements differ. Adapt and test the command separately rather than simply renaming `clamscan`.
 * More visible notifications can be achieved by replacing `notify-send` with [`zenity`](https://wiki.gnome.org/Projects/Zenity) (Gnome) or [`kdialog`](https://userbase.kde.org/Kdialog) (KDE).
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
