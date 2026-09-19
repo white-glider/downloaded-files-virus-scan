@@ -1,0 +1,19 @@
+name: Tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Linux test dependencies
+        run: sudo apt-get update && sudo apt-get install -y shellcheck inotify-tools
+      - name: Shell syntax and lint
+        run: |
+          bash -n scan-download.sh
+          shellcheck scan-download.sh
+      - name: Regression and real inotify tests
+        run: python3 -m unittest discover -s tests -v
