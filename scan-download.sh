@@ -26,7 +26,7 @@ cleanup() {
     [[ -z "$WORK_DIR" ]] || rm -rf -- "$WORK_DIR"
     # Keep the lock pathname: flock is attached to its inode, not its name.
 }
-trap cleanup EXIT
+trap 'cleanup' EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -46,7 +46,7 @@ for dependency in inotifywait clamscan flock mktemp mkdir stat awk cat grep; do
 done
 # %0 and --no-newline require modern inotify-tools (see README).
 inotifywait --help | grep -q -- '--no-newline' ||
-    fail 'inotifywait needs --no-newline support; install inotify-tools 4.23.9 or newer.'
+    fail 'inotifywait needs --no-newline support; install inotify-tools 3.22.6 or newer.'
 DOWNLOADS=${SCAN_DOWNLOAD_DIR:-"$HOME/Downloads"}
 [[ -d "$DOWNLOADS" ]] || fail "Downloads directory does not exist: $DOWNLOADS"
 # Absolute paths ensure filenames beginning with '-' stay operands.

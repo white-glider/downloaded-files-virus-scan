@@ -4,7 +4,7 @@ Script to monitor the `~/Downloads` folder and scan new files for viruses using 
 
 ## Prerequisites
 
-This script requires Linux, Bash, ClamAV (`clamscan`), [inotify-tools](https://github.com/inotify-tools/inotify-tools) **4.23.9 or newer** (`inotifywait` with `%0` and `--no-newline`), util-linux (`flock`), GNU coreutils, AWK, grep, and [libnotify](https://gnome.pages.gitlab.gnome.org/libnotify/) (`notify-send`). Keep the ClamAV signature database updated with FreshClam.
+This script requires Linux, Bash, ClamAV (`clamscan`), [inotify-tools](https://github.com/inotify-tools/inotify-tools) **3.22.6 or newer** (`inotifywait` with `%0` and `--no-newline`), util-linux (`flock`), GNU coreutils, AWK, grep, and [libnotify](https://gnome.pages.gitlab.gnome.org/libnotify/) (`notify-send`). Keep the ClamAV signature database updated with FreshClam.
 
 The original version was tested on Fedora 33. Its old inotify-tools 3.14.21 dependency is not sufficient for the current NUL-delimited event format. Automated Linux tests target Ubuntu 24.04.
 

@@ -158,6 +158,13 @@ exit "${NOTIFY_STATUS:-0}"
         self.stub('inotifywait', 'echo "old version"\n')
         self.assertEqual(self.run_scanner().returncode, 2)
 
+    def test_missing_scanner(self):
+        (self.bin / 'clamscan').unlink()
+        self.env['TEST_PATH'] = shell_path(self.bin)
+        result = self.run_scanner()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(b'Missing command: clamscan', result.stderr)
+
     def test_temp_creation_failure(self):
         self.stub('mktemp', 'exit 1\n')
         result = self.run_scanner()
@@ -195,6 +202,24 @@ exit "${NOTIFY_STATUS:-0}"
         result = self.run_scanner()
         self.assertEqual(result.returncode, 2)
         self.assertIn(b'mode 700', result.stderr)
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX signals and permissions required')
+    def test_term_during_scan_cleans_children_and_private_data(self):
+        self.event_files(['file.txt'])
+        self.env['BLOCK_SCAN'] = '1'
+        process = self.start()
+        self.await_file('scanner.pid')
+        child = int((self.base / 'scanner.pid').read_text())
+        directories = list(self.private.glob('scan-download.*'))
+        self.assertEqual(len(directories), 1)
+        self.assertEqual(directories[0].stat().st_mode & 0o777, 0o700)
+        for file in directories[0].iterdir():
+            self.assertEqual(file.stat().st_mode & 0o777, 0o600)
+        self.stop(process)
+        self.assertEqual(process.returncode, 143)
+        self.assert_cleaned()
+        with self.assertRaises(ProcessLookupError):
+            os.kill(child, 0)
 
     def start(self):
         process = subprocess.Popen([BASH, shell_path(ROOT / 'scan-download.sh')],
