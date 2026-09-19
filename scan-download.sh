@@ -16,6 +16,8 @@ WORK_DIR=
 WATCH_PID=
 SCAN_PID=
 
+# Called indirectly by the EXIT trap; ShellCheck 0.9 cannot trace this call.
+# shellcheck disable=SC2317
 cleanup() {
     for pid in "$WATCH_PID" "$SCAN_PID"; do
         if [[ -n "$pid" ]]; then
