@@ -39,7 +39,8 @@ bash -n scan-download.sh
 shellcheck scan-download.sh
 ```
 
-After a few seconds you should see a desktop notification like the one below:
+The manual EICAR check should produce a desktop notification like the one below.
+The automated tests use notification stubs and do not display desktop popups:
 
 ![Desktop notification](images/notification_screenshot.png)
 
